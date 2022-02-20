@@ -1,3 +1,3 @@
 # ID2203-project
 
-This is a the place for submitting the final project.
+This is the repository for submitting the final project of ID2203.

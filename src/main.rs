@@ -1,3 +1,6 @@
+extern crate sled;
+use kompact::prelude::{promise, Ask, FutureCollection};
+
 use omnipaxos_core::{
     ballot_leader_election::{BLEConfig, BallotLeaderElection},
     sequence_paxos::{CompactionErr, ReconfigurationRequest, SequencePaxos, SequencePaxosConfig},
@@ -5,6 +8,10 @@ use omnipaxos_core::{
     util::LogEntry,
     messages::Message,
 };
+use sled::Transactional;
+use sled::{Config, Result};
+use sled::IVec;
+//use std::ops::FromResidual::<std::result::Result<std::convert::Infallible, sled::Error>>
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)] //k-v store
@@ -64,7 +71,7 @@ fn main() {
     seq_paxos.append(write_entry).expect("Failed to append");
 
     let read_entries = seq_paxos.read_entries(2..5);
-    //println!("{}",Some(read_entries)
+    println!("{:?}", read_entries);
 
     // handle incoming message from network layer
     //let msg: Message<KeyValue, KVSnapshot> =     // message to this node e.g. `msg.to = 2`
@@ -85,35 +92,35 @@ fn main() {
     //     .reconfigure(rc)
     //     .expect("Failed to propose reconfiguration");
 
-    // let idx: u64 = 0; // some index we have read already
-    // let decided_entries: Option<Vec<LogEntry<KeyValue, KVSnapshot>>> =
-    //     seq_paxos.read_decided_suffix(idx);
-    // if let Some(de) = decided_entries {
-    //     for d in de {
-    //         match d {
-    //             LogEntry::StopSign(stopsign) => {
-    //                 let new_configuration = stopsign.nodes;
-    //                 if new_configuration.contains(&my_pid) {
-    //                     // we are in new configuration, start new instance
-    //                     let mut new_sp_conf = SequencePaxosConfig::default();
-    //                     new_sp_conf.set_configuration_id(stopsign.config_id);
-    //                     let new_storage = MemoryStorage::<KeyValue, KVSnapshot>::default();
-    //                     let mut new_sp = SequencePaxos::with(new_sp_conf, new_storage);
-    //                     todo!()
-    //                 }
-    //             }
-    //             LogEntry::Snapshotted(s) => {
-    //                 // read an entry that is snapshotted
-    //                 let snapshotted_idx = s.trimmed_idx;
-    //                 let snapshot: KVSnapshot = s.snapshot;
-    //                 // ...can query the latest value for a key in snapshot
-    //             }
-    //             _ => {
-    //                 todo!()
-    //             }
-    //         }
-    //     }
-    // }
+    let idx: u64 = 0; // some index we have read already
+    let decided_entries: Option<Vec<LogEntry<KeyValue, KVSnapshot>>> =
+        seq_paxos.read_decided_suffix(idx);
+    if let Some(de) = decided_entries {
+        for d in de {
+            match d {
+                LogEntry::StopSign(stopsign) => {
+                    let new_configuration = stopsign.nodes;
+                    if new_configuration.contains(&my_pid) {
+                        // we are in new configuration, start new instance
+                        let mut new_sp_conf = SequencePaxosConfig::default();
+                        new_sp_conf.set_configuration_id(stopsign.config_id);
+                        let new_storage = MemoryStorage::<KeyValue, KVSnapshot>::default();
+                        let mut new_sp = SequencePaxos::with(new_sp_conf, new_storage);
+                        todo!()
+                    }
+                }
+                LogEntry::Snapshotted(s) => {
+                    // read an entry that is snapshotted
+                    let snapshotted_idx = s.trimmed_idx;
+                    let snapshot: KVSnapshot = s.snapshot;
+                    // ...can query the latest value for a key in snapshot
+                }
+                _ => {
+                    todo!()
+                }
+            }
+        }
+    }
 
     // match seq_paxos.trim(Some(100)) {
     //     Ok(_) => {
@@ -151,4 +158,51 @@ fn main() {
         let receiver = out_msg.to;
         // send out_msg to receiver on network layer
     }
+//------------------------------
+    sled_begin();
+
+
+
+}
+
+fn sled_begin() -> sled::Result<()> {
+    // this directory will be created if it does not exist
+    let path = "./storage_sled";
+    let db = sled::open(path)?;
+
+    // key and value types can be `Vec<u8>`, `[u8]`, or `str`.
+    let key = "my key";
+
+    // `generate_id`
+    let value = IVec::from("value");
+
+    dbg!(
+        db.insert(key, &value)?, // as in BTreeMap::insert
+        db.get(key)?,            // as in BTreeMap::get
+        //db.remove(key)?,         // as in BTreeMap::remove
+    );
+
+    Ok(())
+
+    // works like std::fs::open
+    // let tree = sled::open(path).expect("open");
+
+    // // insert and get, similar to std's BTreeMap
+    // tree.insert("KEY1", "VAL1");
+    // assert_eq!(tree.get(&"KEY1"), Ok(Some(IVec::from("VAL1"))));
+
+    // // range queries
+    // for kv in tree.range("KEY1".."KEY9") {
+    //     //println!("{:?}", &kv.get(&"KEY1"), )
+    // }
+
+    // // deletion
+    // tree.remove(&"KEY1");
+
+    // // atomic compare and swap
+    // tree.compare_and_swap("KEY1", Some("VAL1"), Some("VAL2"));
+
+    // // block until all operations are stable on disk
+    // // (flush_async also available to get a Future)
+    // tree.flush();
 }

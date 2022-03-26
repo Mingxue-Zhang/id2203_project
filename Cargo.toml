@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 omnipaxos_core = { git = "https://github.com/haraldng/omnipaxos" }
+sled = "0.34.7"
+kompact = "0.11.0"
+#commitlog = "0.2.0"

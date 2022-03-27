@@ -1,22 +1,2 @@
-Mar 26 23:10:42.688 INFO Paxos component pid: 1 created!
-Mar 26 23:10:43.235 DEBG Newly elected leader: Ballot { n: 0, priority: 0, pid: 9 }
-10:42.799 TRCE Heartbeat request from 4
-Mar 26 23:10:42.809 TRCE Heartbeat request from 2
-Mar 26 23:10:42.823 TRCE Heartbeat request from 9
-Mar 26 23:10:42.831 TRCE Heartbeat request from 3
-Mar 26 23:10:42.838 TRCE Heartbeat request from 5
-Mar 26 23:10:42.852 TRCE Heartbeat request from 6
-Mar 26 23:10:42.864 TRCE Heartbeat request from 7
-Mar 26 23:10:42.868 TRCE Heartbeat request from 8
-Mar 26 23:10:43.212 TRCE Heartbeat request from 2
-Mar 26 23:10:43.249 TRCE Heartbeat request from 9
-Mar 26 23:10:43.270 TRCE Heartbeat request from 4
-Mar 26 23:10:43.279 TRCE Heartbeat request from 3
-Mar 26 23:10:43.283 TRCE Heartbeat timeout round: 1
-Mar 26 23:10:43.290 DEBG Received a majority of heartbeats [(Ballot { n: 0, priority: 0, pid: 4 }, true), (Ballot { n: 0, priority: 0, pid: 3 }, true), (Ballot { n: 0, priority: 0, pid: 9 }, true), (Ballot { n: 0, priority: 0, pid: 2 }, true), (Ballot { n: 0, priority: 0, pid: 5 }, true), (Ballot { n: 0, priority: 0, pid: 7 }, true), (Ballot { n: 0, priority: 0, pid: 8 }, true), (Ballot { n: 0, priority: 0, pid: 6 }, true)]
-Mar 26 23:10:43.298 DEBG BLE 1, New Leader elected: Ballot { n: 0, priority: 0, pid: 9 }
-Mar 26 23:10:43.305 TRCE Initiate new heartbeat round: 2
-Mar 26 23:10:43.312 TRCE Heartbeat request from 5
-Mar 26 23:10:43.320 TRCE Heartbeat request from 8
-Mar 26 23:10:43.325 TRCE Heartbeat request from 6
-Mar 26 23:10:43.332 TRCE Heartbeat request from 7
+Mar 27 14:47:16.418 INFO Paxos component pid: 1 created!
+ pid: 1 created!

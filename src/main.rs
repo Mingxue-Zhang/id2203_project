@@ -1,4 +1,4 @@
-#![allow(unused_variables, unused_mut, unused_imports)]
+#![allow(unused_variables, unused_mut, unused_imports, unused_must_use, dead_code)]
 
 extern crate sled;
 pub mod config;
@@ -57,60 +57,52 @@ impl Snapshot<KeyValue> for KVSnapshot {
     }
 }
 
-
 fn main() {
 
-    let cfg = TestConfig::load("test").expect("Test config loaded"); //proposal_test
-
+    let cfg = TestConfig::load("test").expect("Test config loaded"); 
     let sys = TestSystem::with(cfg.num_nodes, cfg.ble_hb_delay, cfg.num_threads);
-
-    let (ble, _) = sys.ble_paxos_nodes().get(&1).unwrap();
+    let (ble, sq) = sys.ble_paxos_nodes().get(&1).unwrap();
 
     let (kprom_ble, kfuture_ble) = promise::<Ballot>();
     ble.on_definition(|x| x.add_ask(Ask::new(kprom_ble, ())));
 
+    //let m = Message::with(self.pid, *pid, PaxosMsg::PrepareReq);
+    
+    let mut vec_proposals = vec![];
+    let mut futures = vec![];
+    let one_sec = time::Duration::from_millis(1000);
+    for i in 0..cfg.num_proposals {
+        
+        let (kprom, kfuture) = promise::<Value>();
+        vec_proposals.push(Value(i));
+        sq.on_definition(|x| {
+            x.propose(Value(i));
+            x.add_ask(Ask::new(kprom, ()))
+        });
+        futures.push(kfuture);
+        thread::sleep(one_sec);
+    }
+
     sys.start_all_nodes();
 
-    // let elected_leader = kfuture_ble
-    //     .wait_timeout(cfg.wait_timeout)
-    //     .expect("No leader has been elected in the allocated time!");
-    // println!("elected: {:?}", elected_leader);
+    let elected_leader = kfuture_ble
+        .wait_timeout(cfg.wait_timeout)
+        .expect("No leader has been elected in the allocated time!");
+    println!("elected: {:?}", elected_leader);
 
-    // let mut proposal_node: u64;
-    // loop {
-    //     proposal_node = rand::thread_rng().gen_range(1..=cfg.num_nodes as u64);
+    match FutureCollection::collect_with_timeout::<Vec<_>>(futures, cfg.wait_timeout) {
+        Ok(_) => {}
+        Err(e) => panic!("Error on collecting futures of decided proposals: {}", e),
+    }
 
-    //     if proposal_node != elected_leader.pid {
-    //         break;
-    //     }
-    // }
-
-    // let (_, px) = sys.ble_paxos_nodes().get(&proposal_node).unwrap();
-
-    // let (kprom_px, kfuture_px) = promise::<Value>();
-    // px.on_definition(|x| {
-    //     x.add_ask(Ask::new(kprom_px, ()));
-    //     x.propose(Value(123));
-    // });
-
-    // kfuture_px
-    //     .wait_timeout(cfg.wait_timeout)
-    //     .expect("The message was not proposed in the allocated time!");
-
-    // println!("Pass forward_proposal");
-
-    // match sys.kompact_system.shutdown() {
-    //     Ok(_) => {}
-    //     Err(e) => panic!("Error on kompact shutdown: {}", e),
-    // };
-
-    //configuration with id 1 and the following cluster
+    //let seq_paxos = sq::paxos;
+    
     // let configuration_id = 1;
     // let _cluster = vec![1, 2, 3];
 
-    // create the replica 2 in this cluster (other replica instances are created similarly with pid 1 and 3 on other servers)
+    // // create the replica 2 in this cluster (other replica instances are created similarly with pid 1 and 3 on other servers)
     // let my_pid = 2;
-    // let my_peers = vec![1, 3, 4, 5];
+    // let my_peers = vec![1, 3];
 
     // let mut sp_config = SequencePaxosConfig::default();
     // sp_config.set_configuration_id(configuration_id);
@@ -118,15 +110,56 @@ fn main() {
     // sp_config.set_peers(my_peers.clone());
 
     // let storage = MemoryStorage::<KeyValue, KVSnapshot>::default();
-    
-    // let mut seq_paxos = SequencePaxos::with(sp_config, storage);
-    
+     let mut seq_paxos = SequencePaxos::with(sp_config, storage);
+   
     // let mut ble_config = BLEConfig::default();
     // ble_config.set_pid(my_pid);
-    // ble_config.set_peers(my_peers);
-    // ble_config.set_hb_delay(40);
-    // let ble = BallotLeaderElection::with(ble_config);
+    // ble_config.set_peers(my_peers.clone());
+    // ble_config.set_hb_delay(40); // a leader timeout of 100 ticks
     
+    // let write_entry = KeyValue {
+    //     key: String::from("KV - K"),
+    //     value: 123,
+    // };
+
+    // let mut ble = BallotLeaderElection::with(ble_config);
+    
+    // seq_paxos.append(write_entry).expect("Failed to append");
+
+    // println!(" the value in the in memory store is {:?}", seq_paxos.read_entries(..));
+
+
+    // // every 10ms call the following
+    // if let Some(leader) = ble.tick() {
+    //     // a new leader is elected, pass it to SequencePaxos.
+    //     seq_paxos.handle_leader(leader);
+    //     println!("the current leader is: {:?}", seq_paxos.get_current_leader());
+    // }
+
+    
+
+    let db_config = sled::Config::default()
+        .path("./storage_sled".to_owned())
+        .cache_capacity(10_000_000_000);
+
+    let recovered_storage = db_config.open().expect("cannot open the database");
+
+    // some persistent storage
+    // recovered_storage.insert("k1", IVec::from("my value"));
+    match recovered_storage.get("k1") { // successful persistent 
+        Ok(Some(value)) => println!("retrieved value {:?}", String::from_utf8(value.to_vec()).unwrap()),
+        Ok(None) => println!("value not found"),
+        Err(e) => println!("operational problem encountered: {}", e),
+    }
+    
+    // let (_, px) = sys.ble_paxos_nodes().get(&proposal_node).unwrap();
+
+    // match sys.kompact_system.shutdown() {
+    //     Ok(_) => {}
+    //     Err(e) => panic!("Error on kompact shutdown: {}", e),
+    // };
+
+       
 
 
     // let mut i:u32 = 1;
@@ -148,80 +181,8 @@ fn main() {
     // }
     
 
-    // let read_entries = seq_paxos.read_entries(..);
-    // println!("{:?}", read_entries);
-
-    // handle incoming message from network layer
-    //let msg: Message<KeyValue, KVSnapshot> =     // message to this node e.g. `msg.to = 2`
-    //seq_paxos.handle(msg);
-
-    /* Fail-recovery */
-    /*
-    let recovered_storage = ...;    // some persistent storage
-    let mut recovered_paxos = SequencePaxos::with(sp_config, recovered_storage);
-     */
-
-    /* Reconfiguration */
-    // Node 3 seems to have crashed... let's replace it with node 4.
-    // let new_configuration = vec![1, 2, 4];
-    // let metadata = None;
-    // let rc = ReconfigurationRequest::with(new_configuration, metadata);
-    // seq_paxos
-    //     .reconfigure(rc)
-    //     .expect("Failed to propose reconfiguration");
-
-    // let idx: u64 = 0; // some index we have read already
-    // let decided_entries: Option<Vec<LogEntry<KeyValue, KVSnapshot>>> =
-    //     seq_paxos.read_decided_suffix(idx);
-    // if let Some(de) = decided_entries {
-    //     for d in de {
-    //         match d {
-    //             LogEntry::StopSign(stopsign) => {
-    //                 let new_configuration = stopsign.nodes;
-    //                 if new_configuration.contains(&my_pid) {
-    //                     // we are in new configuration, start new instance
-    //                     let mut new_sp_conf = SequencePaxosConfig::default();
-    //                     new_sp_conf.set_configuration_id(stopsign.config_id);
-    //                     let new_storage = MemoryStorage::<KeyValue, KVSnapshot>::default();
-    //                     let mut new_sp = SequencePaxos::with(new_sp_conf, new_storage);
-    //                     todo!()
-    //                 }
-    //             }
-    //             LogEntry::Snapshotted(s) => {
-    //                 // read an entry that is snapshotted
-    //                 let snapshotted_idx = s.trimmed_idx;
-    //                 let snapshot: KVSnapshot = s.snapshot;
-    //                 // ...can query the latest value for a key in snapshot
-    //             }
-    //             _ => {
-    //                 todo!()
-    //             }
-    //         }
-    //     }
-    // }
-
-    // let mut ble_conf = BLEConfig::default();
-    // let mut ble_config = BLEConfig::default();
-    // ble_config.set_pid(my_pid);
-    // ble_config.set_peers(my_peers);
-    // ble_config.set_hb_delay(100); // a leader timeout of 100 ticks
-
-    // let mut ble = BallotLeaderElection::with(ble_conf);
-
-	// // every 10ms call the following
-	// if let Some(leader) = ble.tick() {
-    // // a new leader is elected, pass it to SequencePaxos.
-    // 	seq_paxos.handle_leader(leader);
-	// }
-
-    
-    // // send outgoing messages. This should be called periodically, e.g. every ms
-    // for out_msg in ble.get_outgoing_msgs() {
-    //     let receiver = out_msg.to;
-    //     // send out_msg to receiver on network layer
-    // }
 //------------------------------
-    sled_begin();
+    //sled_begin();
     
 
 

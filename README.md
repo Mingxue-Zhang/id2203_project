@@ -4,7 +4,7 @@
 Fail-recovery: Persistant storage and caching
 
 ## How to run?
-go into the package, then run 
+go into the package dir, then run 
 ```
 ./test.bat;
 ```

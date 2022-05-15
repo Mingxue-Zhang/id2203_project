@@ -6,7 +6,7 @@ Fail-recovery: Persistant storage and caching
 ## How to run?
 go into the package dir, then run 
 ```
-./test.bat;
+./test.bat
 ```
 or run with multiple command table or bash, then use, where X is node id;
 ```
